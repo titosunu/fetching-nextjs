@@ -8,5 +8,6 @@ export const useProducts = () => {
       return products;
     },
     refetchOnWindowFocus: false,
+    queryKey: ["fetch.product"],
   });
 };
