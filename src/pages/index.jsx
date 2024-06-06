@@ -3,7 +3,6 @@ import {
   Container,
   Heading,
   Table,
-  TableContainer,
   Thead,
   Tbody,
   Th,
@@ -16,16 +15,23 @@ import {
   FormHelperText,
   VStack,
   Button,
+  Box,
   useToast,
 } from "@chakra-ui/react";
 import { useProducts } from "@/features/product/useProducts";
 import { useFormik } from "formik";
 import { useMutation } from "@tanstack/react-query";
 import { axiosInstance } from "@/lib/axios";
+import { useCreateProduct } from "@/features/product/useCreateProduct";
 
 export default function Home() {
-  const { data, isLoading, refetch: refetchProducts } = useProducts();
+  const {
+    data,
+    isLoading: productsIsLoading,
+    refetch: refetchProducts,
+  } = useProducts();
   const toast = useToast();
+
   const formik = useFormik({
     initialValues: {
       name: "",
@@ -36,7 +42,7 @@ export default function Home() {
     onSubmit: () => {
       const { name, price, description, image } = formik.values;
       console.log(formik.values);
-      mutate({
+      createProduct({
         name,
         price: parseInt(price),
         description,
@@ -53,10 +59,17 @@ export default function Home() {
     },
   });
 
-  const { mutate } = useMutation({
-    mutationFn: async (body) => {
-      const productsResponse = await axiosInstance.post("/products", body);
-      return productsResponse;
+  const { mutate: createProduct, isPending: createProductsIsLoading } =
+    useCreateProduct({
+      onSuccess: () => {
+        refetchProducts();
+      },
+    });
+
+  const { mutate: deleteProduct } = useMutation({
+    mutationFn: async (id) => {
+      const products = await axiosInstance.delete(`/products/${id}`);
+      return products;
     },
     onSuccess: () => {
       refetchProducts();
@@ -73,9 +86,18 @@ export default function Home() {
         <Tr key={product.id}>
           <Td>{index + 1}</Td>
           <Td>{product.name}</Td>
-          <Td>{product.price}</Td>
+          <Td>Rp {product.price.toLocaleString("id-ID")}</Td>
           <Td>{product.description}</Td>
-          <Td>{product.image}</Td>
+          <Td>
+            <Button
+              onClick={() => deleteProduct(product.id)}
+              colorScheme="red"
+              variant="solid"
+              type="submit"
+            >
+              Delete
+            </Button>
+          </Td>
         </Tr>
       );
     });
@@ -90,27 +112,69 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <main>
-        <Container m={2}>
-          <Heading>Hello World</Heading>
-          <TableContainer>
-            <Table>
+        <Container maxW="container.lg" py={10}>
+          <Heading as="h1" mb={6} textAlign="center">
+            Hello World
+          </Heading>
+          <Box
+            mb={10}
+            border="1px"
+            borderColor="gray.200"
+            borderRadius="md"
+            overflow="hidden"
+          >
+            <Table
+              variant="striped"
+              colorScheme="blue"
+              width="100%"
+              border="1px"
+              borderColor="gray.200"
+            >
               <Thead>
                 <Tr>
-                  <Th>Id</Th>
-                  <Th>Name</Th>
-                  <Th>Price</Th>
-                  <Th>description</Th>
-                  <Th>image</Th>
+                  <Th border="1px" borderColor="gray.200">
+                    Id
+                  </Th>
+                  <Th border="1px" borderColor="gray.200">
+                    Name
+                  </Th>
+                  <Th border="1px" borderColor="gray.200">
+                    Price
+                  </Th>
+                  <Th border="1px" borderColor="gray.200">
+                    Description
+                  </Th>
+                  <Th border="1px" borderColor="gray.200">
+                    Action
+                  </Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {isLoading && <Spinner />}
+                {productsIsLoading && (
+                  <Tr>
+                    <Td
+                      colSpan={5}
+                      textAlign="center"
+                      border="1px"
+                      borderColor="gray.200"
+                    >
+                      <Spinner />
+                    </Td>
+                  </Tr>
+                )}
                 {renderProducts()}
               </Tbody>
             </Table>
-          </TableContainer>
-          <form onSubmit={formik.handleSubmit}>
-            <VStack spacing="5">
+          </Box>
+          <Box
+            as="form"
+            onSubmit={formik.handleSubmit}
+            p={5}
+            shadow="md"
+            borderWidth="1px"
+            borderRadius="md"
+          >
+            <VStack spacing={5}>
               <FormControl>
                 <FormLabel>Title</FormLabel>
                 <Input
@@ -119,6 +183,8 @@ export default function Home() {
                   value={formik.values.name}
                 />
                 <FormHelperText>Title product</FormHelperText>
+              </FormControl>
+              <FormControl>
                 <FormLabel>Price</FormLabel>
                 <Input
                   name="price"
@@ -126,6 +192,8 @@ export default function Home() {
                   value={formik.values.price}
                 />
                 <FormHelperText>Price product</FormHelperText>
+              </FormControl>
+              <FormControl>
                 <FormLabel>Description</FormLabel>
                 <Input
                   name="description"
@@ -133,6 +201,8 @@ export default function Home() {
                   value={formik.values.description}
                 />
                 <FormHelperText>Description product</FormHelperText>
+              </FormControl>
+              <FormControl>
                 <FormLabel>Images</FormLabel>
                 <Input
                   name="image"
@@ -140,15 +210,16 @@ export default function Home() {
                   value={formik.values.image}
                 />
                 <FormHelperText>Image for product</FormHelperText>
-                <Button
-                  bgGradient="linear(to-t, green.200, pink.500)"
-                  type="submit"
-                >
+              </FormControl>
+              {createProductsIsLoading ? (
+                <Spinner />
+              ) : (
+                <Button colorScheme="teal" variant="solid" type="submit">
                   Submit product
                 </Button>
-              </FormControl>
+              )}
             </VStack>
-          </form>
+          </Box>
         </Container>
       </main>
     </>
